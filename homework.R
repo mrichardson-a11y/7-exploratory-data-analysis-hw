@@ -1,3 +1,5 @@
+# Collaborators: Aylin, Krista, Maddy
+
 library(tidyverse)
 library(DataExplorer)
 library(rstatix)
@@ -15,7 +17,14 @@ cities <- c("Charlotte", "Los Angeles", "Houston", "Indianapolis", "Jacksonville
 #> Call the function "read_weather" 
 #> Check by reading/glimpsing a single station's file
 
-
+read_weather <- function(stations) {
+  station_abbrev <- paste0(stations, ".csv")
+  data <- read.csv(file.path("us-weather-history", station_abbrev))
+  data$stations <- stations
+  data$date <- as.Date(data$date, format = "%Y-%m-%d")
+  return(data)
+}
+read_weather("KIND")
 
 # QUESTION 2
 #> Use map() and your new function to read in all 10 stations
@@ -23,7 +32,7 @@ cities <- c("Charlotte", "Los Angeles", "Houston", "Indianapolis", "Jacksonville
 #> you will need to do so in the code with bind_rows()
 #> Save the resulting dataset to "ds"
 
-
+ds <- map(stations, read_weather) %>% bind_rows()
 
 
 # QUESTION 3
@@ -33,7 +42,17 @@ cities <- c("Charlotte", "Los Angeles", "Houston", "Indianapolis", "Jacksonville
 #> and save the results to a new tibble
 #> Write a logical statement that would trigger a warning if any city did not have 365 days
 
+ds$city <- factor(ds$stations,
+                  levels = stations,
+                  labels = cities)
 
+days <- ds %>% freq_table(city) 
+
+if (any(days$n != 365)) {
+  print("WARNING not 365 days")
+} else {
+  print("You're all good!")
+}
 
 
 # QUESTION 4
@@ -41,7 +60,15 @@ cities <- c("Charlotte", "Los Angeles", "Houston", "Indianapolis", "Jacksonville
 #> if your check worked? Create a test to mess up the dataset to make sure that your
 #> check does throw an error if the conditions aren't met
 
+ds_error <- ds %>% slice(-1)
 
+days <- ds_error %>% freq_table(city) 
+
+if (any(days$n != 365)) {
+  print("WARNING not 365 days")
+} else {
+  print("You're all good!")
+}  
 
 #> At this point, your data should look like the "compiled_data.csv" file
 #> in data-clean. If it isn't, read in that file to use for the remaining
@@ -51,7 +78,7 @@ cities <- c("Charlotte", "Los Angeles", "Houston", "Indianapolis", "Jacksonville
 #> Find a function that lets you pull out the month from the date 
 #> and make "month" a factor as a new variable in ds
 
-
+ds <- ds %>% mutate(month = factor(month(date, label = TRUE)))
 
 # QUESTION 7
 #> Use rstatix to check if there are any outliers for actual_mean_temp.
@@ -60,18 +87,25 @@ cities <- c("Charlotte", "Los Angeles", "Houston", "Indianapolis", "Jacksonville
 #> get_summary_stats() to get the mean and SE for actual_mean_temp
 #> by month.
 
+outliers <- ds %>% identify_outliers(actual_mean_temp)
+ds <- ds %>% anti_join(outliers, by = c("city", "date"))
+ds %>% group_by(month) %>% get_summary_stats(actual_mean_temp)
 
 # QUESTION 8
 #> Use the Data Explorer package to plot boxplots of all of the numeric variables in the dataset
 #> grouped by city, then do the same thing grouped by month. 
 #> Finally, use plot_correlation to investigate correlations between the continuous variables only
 #> Check the documentation for plot_correlation for an easy way to do this
+ds %>% plot_boxplot(by = "city")
+ds %>% plot_boxplot(by = "month")
 
+ds %>% plot_correlation(type = "c")
 
 # QUESTION 9
 #> Create a scatterplot of actual_mean_temp (y axis) by date (x axis)
 #> Use facet_wrap to make a separate plot for each city (3 columns)
 #> Make the points different colors according to month
+
 
 
 # QUESTION 10
